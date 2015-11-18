@@ -37,17 +37,19 @@ public class ConfigurationCreator {
 	private static final Logger LOGGER = LoggerFactory.getLogger(ConfigurationCreator.class);
 
 	private final Environment environment;
+	private final MultiTenancyConfiguration multiTenancyConfiguration;
 	
 	/**
 	 * @deprecated cdi eyes only
 	 */	
 	protected ConfigurationCreator() {
-		this(null);	
+		this(null, null);	
 	}
 
 	@Inject
-	public ConfigurationCreator(Environment environment) {
+	public ConfigurationCreator(Environment environment, MultiTenancyConfiguration multiTenancyConfiguration) {
 		this.environment = environment;	
+		this.multiTenancyConfiguration = multiTenancyConfiguration;
 	}
 
 	protected URL getHibernateCfgLocation() {
@@ -63,7 +65,10 @@ public class ConfigurationCreator {
 
 		URL location = getHibernateCfgLocation();
 		LOGGER.debug("building configuration using {} file", location);
-		return configuration.configure(location);
+		
+		if(location != null) return configuration.configure(location);
+		
+		return configuration;
 	}
 
 	/**
@@ -72,5 +77,8 @@ public class ConfigurationCreator {
 	 * @param configuration
 	 */
 	protected void extraConfigurations(Configuration configuration) {
+		if(multiTenancyConfiguration.hasMultiTenancySupport()) {
+			configuration.setProperty("tenant_id", multiTenancyConfiguration.getTenantIdentifier());
+		}
 	}
 }

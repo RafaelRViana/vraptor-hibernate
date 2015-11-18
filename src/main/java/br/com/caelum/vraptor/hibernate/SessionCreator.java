@@ -35,7 +35,8 @@ public class SessionCreator {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(SessionCreator.class);
 	private SessionFactory factory;
-
+	private MultiTenancyConfiguration multiTenancyConfiguration;
+	
 	/**
 	 * @deprecated CDI eyes only
 	 */
@@ -43,14 +44,16 @@ public class SessionCreator {
 	}
 
 	@Inject
-	public SessionCreator(SessionFactory factory) {
+	public SessionCreator(SessionFactory factory, MultiTenancyConfiguration multiTenancyConfiguration) {
 		this.factory = factory;
+		this.multiTenancyConfiguration = multiTenancyConfiguration;
 	}
 
 	@Produces
 	@RequestScoped
 	public Session getInstance() {
-		Session session = factory.openSession();
+		Session session = multiTenancyConfiguration.createSession(factory);
+		
 		LOGGER.debug("opening a session {}", session);
 		return session;
 	}
@@ -59,4 +62,5 @@ public class SessionCreator {
 		LOGGER.debug("closing session {}", session);
 		session.close();
 	}
+	
 }

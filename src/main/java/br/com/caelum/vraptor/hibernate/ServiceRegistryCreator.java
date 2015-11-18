@@ -22,8 +22,12 @@ import javax.enterprise.inject.Produces;
 import javax.inject.Inject;
 
 import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
+import org.hibernate.c3p0.internal.C3P0ConnectionProvider;
 import org.hibernate.cfg.Configuration;
+import org.hibernate.engine.jdbc.connections.spi.ConnectionProvider;
+import org.hibernate.engine.jdbc.connections.spi.MultiTenantConnectionProvider;
 import org.hibernate.service.ServiceRegistry;
+import org.hibernate.service.spi.ServiceRegistryImplementor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,7 +40,8 @@ public class ServiceRegistryCreator {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(ServiceRegistryCreator.class);
 	private Configuration cfg;
-
+	private MultiTenancyConfiguration multiTenancyConfiguration;
+	
 	/**
 	 * @deprecated CDI eyes only
 	 */
@@ -44,19 +49,42 @@ public class ServiceRegistryCreator {
 	}
 
 	@Inject
-	public ServiceRegistryCreator(Configuration cfg) {
+	public ServiceRegistryCreator(Configuration cfg, MultiTenancyConfiguration multiTenancyConfiguration) {
 		this.cfg = cfg;
+		this.multiTenancyConfiguration = multiTenancyConfiguration;
 	}
 
 	@Produces
 	@ApplicationScoped
 	public ServiceRegistry getInstance() {
 		LOGGER.debug("creating a service registry");
-		return new StandardServiceRegistryBuilder().applySettings(cfg.getProperties()).build();
+		StandardServiceRegistryBuilder serviceRegistryBuilder = new StandardServiceRegistryBuilder();
+		serviceRegistryBuilder.applySettings(cfg.getProperties());
+		
+		if(multiTenancyConfiguration.hasMultiTenancySupport()) {
+			serviceRegistryBuilder.addService(MultiTenantConnectionProvider.class, getMultiTenantConnectionProvider());	
+		}
+		
+		return serviceRegistryBuilder.build();
 	}
 
 	public void destroy(@Disposes ServiceRegistry serviceRegistry) {
 		LOGGER.debug("destroying service registry");
 		StandardServiceRegistryBuilder.destroy(serviceRegistry);
 	}
+	
+	protected MultiTenantConnectionProvider getMultiTenantConnectionProvider() {
+		return new MultiTenantConnectionProviderDefault(cfg, multiTenancyConfiguration) {
+			private static final long serialVersionUID = -3482116169215468727L;
+
+			@Override
+			protected ConnectionProvider buildConnectionProvider() {
+				C3P0ConnectionProvider connectionProvider = new C3P0ConnectionProvider();		
+				connectionProvider.injectServices((ServiceRegistryImplementor) getInstance());
+				connectionProvider.configure(cfg.getProperties());
+				return connectionProvider;
+			}
+		};
+	}
+	
 }

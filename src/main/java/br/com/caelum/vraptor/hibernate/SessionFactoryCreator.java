@@ -16,6 +16,8 @@
  */
 package br.com.caelum.vraptor.hibernate;
 
+import java.util.Properties;
+
 import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.inject.Disposes;
 import javax.enterprise.inject.Produces;
@@ -23,6 +25,7 @@ import javax.inject.Inject;
 
 import org.hibernate.SessionFactory;
 import org.hibernate.cfg.Configuration;
+import org.hibernate.cfg.Environment;
 import org.hibernate.service.ServiceRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +40,7 @@ public class SessionFactoryCreator {
 	private static final Logger LOGGER = LoggerFactory.getLogger(SessionFactoryCreator.class);
 	private Configuration cfg;
 	private ServiceRegistry serviceRegistry;
+	private MultiTenancyConfiguration multiTenancyConfiguration;
 
 	/**
 	 * @deprecated CDI eyes only
@@ -45,9 +49,10 @@ public class SessionFactoryCreator {
 	}
 
 	@Inject
-	public SessionFactoryCreator(Configuration cfg, ServiceRegistry serviceRegistry) {
+	public SessionFactoryCreator(Configuration cfg, ServiceRegistry serviceRegistry, MultiTenancyConfiguration multiTenancyConfiguration) {
 		this.cfg = cfg;
 		this.serviceRegistry = serviceRegistry;
+		this.multiTenancyConfiguration = multiTenancyConfiguration;
 	}
 
 	@Produces
@@ -61,4 +66,17 @@ public class SessionFactoryCreator {
 		LOGGER.debug("destroying session factory");
 		sessionFactory.close();
 	}
+	
+	/**
+	 * Override this method in a specialize class (using CDI's @Specializes) to set custom properties.
+	 * Like, add multi-tenancy support
+	 *
+	 * @param configuration
+	 */
+	protected void extraProperties(Properties properties) {
+		if(multiTenancyConfiguration.hasMultiTenancySupport()) {
+			properties.put(Environment.MULTI_TENANT, multiTenancyConfiguration.getMultiTenancyStrategy());
+		}
+	}
+	
 }

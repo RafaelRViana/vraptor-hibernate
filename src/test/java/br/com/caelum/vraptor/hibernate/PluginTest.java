@@ -25,6 +25,8 @@ import static org.mockito.Mockito.when;
 
 import java.net.URL;
 
+import javax.servlet.http.HttpServletRequest;
+
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.cfg.Configuration;
@@ -43,7 +45,8 @@ public class PluginTest {
 
 	private ConfigurationCreator configurationCreator;
 	private Configuration configuration;
-
+	private MultiTenancyConfiguration multiTenancyConfiguration;
+	
 	private ServiceRegistryCreator serviceRegistryCreator;
 	private ServiceRegistry serviceRegistry;
 
@@ -56,7 +59,11 @@ public class PluginTest {
 	@Before
 	public void setup() {
 		environment = mock(Environment.class);
-
+		
+		HttpServletRequest request = mock(HttpServletRequest.class);
+		when(request.getRequestURL()).thenReturn(new StringBuffer("teste"));
+		multiTenancyConfiguration = new MultiTenancyConfiguration(request);	
+		
 		URL cfgLocation = getClass().getResource("/hibernate.cfg.xml");
 		when(environment.getResource(anyString())).thenReturn(cfgLocation);
 	}
@@ -78,24 +85,24 @@ public class PluginTest {
 	}
 
 	private void buildConfiguration() {
-		configurationCreator = new ConfigurationCreator(environment);
+		configurationCreator = new ConfigurationCreator(environment, multiTenancyConfiguration);
 		configurationCreator = spy(configurationCreator);
 
 		configuration = configurationCreator.getInstance();
 	}
 
 	private void buildServiceRegistry() {
-		serviceRegistryCreator = new ServiceRegistryCreator(configuration);
+		serviceRegistryCreator = new ServiceRegistryCreator(configuration, multiTenancyConfiguration);
 		serviceRegistry = serviceRegistryCreator.getInstance();
 	}
 
 	private void buildSessionFactory() {
-		sessionFactoryCreator = new SessionFactoryCreator(configuration, serviceRegistry);
+		sessionFactoryCreator = new SessionFactoryCreator(configuration, serviceRegistry, multiTenancyConfiguration);
 		sessionFactory = sessionFactoryCreator.getInstance();
 	}
 
 	private void buildSession() {
-		sessionCreator = new SessionCreator(sessionFactory);
+		sessionCreator = new SessionCreator(sessionFactory, multiTenancyConfiguration);
 		session = sessionCreator.getInstance();
 	}
 
